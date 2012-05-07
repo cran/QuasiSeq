@@ -9,7 +9,7 @@ if(any(round(counts)!=counts)) stop("Error:  Data contains non-integers.")
 if(any(counts<0)) stop("Error:  Data contains negative counts.")
 
 if(!Model %in% c("NegBin","Poisson")) stop("Unidentified Model: Model must be either 'NegBin' or 'Poisson'.")
-if(Model=="NegBin"&!NBdisp %in% c("trend","common")&length(NBdisp)!=nrow(counts)) stop("Unidentified NegBin Dispersion: NBdisp must be set as 'trend' or 'common' to estimate negative binomial dispersion from data using GLM edgeR (McCarthy, 2012),
+if(Model=="NegBin"&!NBdisp %in% c("trend","common")&length(NBdisp)!=nrow(counts)) stop("Unidentified NegBin Dispersion: NBdisp must be set as 'trend' or 'common' to estimate negative binomial dispersion from data using GLM edgeR (McCarthy et al., 2012),
  or it must be a vector providing negative binomial dispersion parameter value to use for each gene.")
 
 if(Model=="NegBin"&length(NBdisp)==nrow(counts)&!is.numeric(NBdisp)) stop("Error: NBdisp contains non-numeric values.
@@ -62,13 +62,14 @@ if(length(unique(design))>1) design<-model.matrix(~as.factor(design))
 if(length(unique(design))==1) design<-matrix(1,ncol(counts),1)
 }
 if(jj==1){
-d<-DGEList(counts = counts, group = design[,2])
+if(is.null(log.offset)) d<-DGEList(counts = counts, group = design[,2],lib.size=rep(1,ncol(counts)))
+if(!is.null(log.offset)) d<-DGEList(counts = counts, group = design[,2],lib.size=exp(log.offset))
 d<-calcNormFactors(d)
 
-### If requested, use gene-specific trended dispersion estimates from GLM edgeR (McCarthy, 2012).
+### If requested, use gene-specific trended dispersion estimates from GLM edgeR (McCarthy et al., 2012).
 if(NBdisp=="trend")nb.disp<-estimateGLMTrendedDisp(d, design,...)$trended.dispersion
 
-### If requested, use common dispersion estimate from GLM edgeR (McCarthy, 2012).
+### If requested, use common dispersion estimate from GLM edgeR (McCarthy et al., 2012).
 if(NBdisp=="common")nb.disp<-rep(estimateGLMCommonDisp(d, design,...)$common.dispersion,nrow(counts))
 
 ### If provided, use prespecified dispersion estimates.
@@ -103,7 +104,7 @@ deviance.list[[jj]]<-res$dev
 if(is.null(test.mat)){
 print("Comparing each model from design.list to the full model in design.list (which must be the full model)")
  test.mat<-cbind(1,2:length(design.list))
-	rownames(test.mat)<-paste(1,2:length(design.list))  }
+	rownames(test.mat)<-paste("Design",1," vs Design",2:length(design.list),sep="")  }
 
 LRT<-NULL;num.df<-NULL
 for(i in 1:nrow(test.mat)){
@@ -111,7 +112,7 @@ for(i in 1:nrow(test.mat)){
 	num.df<-c(num.df,abs(p[i2]-p[i1]))
 	LRT<-cbind(LRT,-(deviance.list[[i2]]-deviance.list[[i1]])/(p[i2]-p[i1]))
 }
-colnames(LRT)<-paste("LRT",rownames(test.mat),sep="")
+colnames(LRT)<-rownames(test.mat)
 
 den.df<-(n-p[1])
 

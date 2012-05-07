@@ -1,11 +1,11 @@
 Package: QuasiSeq
-Version: 1.0-1
-Date: 2012-04-14
+Version: 1.0-2
+Date: 2012-05-07
 Title: QuasiSeq
 Author: Steve Lund <lunds@iastate.edu>
 Maintainer: Steve Lund <lunds@iastate.edu>
-Depends: R (>= 2.14.1), fields
-Imports: edgeR
+Depends: R (>= 2.14.1), fields, edgeR
+Imports:
 Suggests: MASS
 Description: This package is used to apply the QL, QLShrink and
         QLSpline methods (Lund, Nettleton, McCarthy, and Smyth, 2012)
@@ -14,6 +14,6 @@ Description: This package is used to apply the QL, QLShrink and
 License: GPL (>= 2)
 URL: http://www.r-project.org,
 BugReports: http://abc.bugtracker.url
-Packaged: 2012-04-14 21:47:49 UTC; spl
+Packaged: 2012-06-25 15:34:26 UTC; spl
 Repository: CRAN
-Date/Publication: 2012-04-15 17:23:23
+Date/Publication: 2012-06-25 17:01:26
