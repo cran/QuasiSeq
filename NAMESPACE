@@ -1,11 +1,10 @@
-# Default NAMESPACE created by R
-# Remove the previous line if you edit this file
+export(NBDev, PoisDev, QL.fit, QL.results)
+import(edgeR)
 
-# Export all names
-exportPattern(".")
+#import(MASS)
 
-# Import all packages listed as Imports or Depends
-import(
-  fields,
-  edgeR
-)
+importFrom(Matrix, nearPD)
+
+importFrom(mgcv, negbin)
+
+#useDynLib(QuasiSeq, .registration=TRUE)

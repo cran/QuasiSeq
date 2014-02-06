@@ -1,8 +1,8 @@
 % File src/library/QuasiSeq/man/NBDev.Rd
      \name{NBDev}
      \alias{NBDev}
-     \title{Compute negative binomial deviances (up to a constant) for given design matrix}
-     \description{A function called within \code{QL.fit} to compute quasi-negative binomial deviances of each gene for given design matrix}
+     \title{Fit a negative binomial GLM for given design matrix}
+     \description{A function called within \code{QL.fit} to fit a negative binomial GLM of each gene for given design matrix}
      \usage{
      NBDev(counts,design,log.offset,nb.disp,print.progress=TRUE)
      }
@@ -15,14 +15,21 @@
 }
 	
 \value{list containing:
-\item{dev}{vector containing the deviance for each gene under a Poisson model fit to design matrix (or vector, for one-factor experiments) specified by \code{design}. This vector is passed along within the \code{QL.fit} function.}
+\item{dev}{vector containing the deviance for each gene under a negative binomial model fit to design matrix specified by \code{design}. This vector is passed along within the \code{QL.fit} function.}
   \item{means}{matrix of fitted mean values for each gene}
-\item{parms}{matrix of estimated coefficients for each gene}	
+\item{parms}{matrix of estimated coefficients for each gene. Note that these are given on the log scale. (i.e. intercept coefficient reports log(average count) and non-intercept coefficients report estimated log fold-changes.)  Genes with at least one zero count and initial absolute coefficient estimates greater than three undergo the bias correction of Kosmidis & Firth (2009) to moderate extreme coefficient estimates.}	
 }
 
-\author{Steve Lund \email{lunds@iastate.edu}}
+\references{
+Kosmidis and Firth (2009) "Bias reduction in exponential family nonlinear models" \emph{Biometrika}, \bold{96}, 793--804.
 
-     \keyword{RNA-seq, quasi-likelihood, differential expression}
+Lund, Nettleton, McCarthy and Smyth (2012) "Detecting differential expression in RNA-sequence data using quasi-likelihood with shrunken dispersion estimates" emph{SAGMB}, \bold{11}(5).
+}
+
+
+\author{Steve Lund \email{lundsp@gmail.com}}
+
+     \keyword{RNA-seq, quasi-likelihood, differential expression, negative binomial}
 
 
 

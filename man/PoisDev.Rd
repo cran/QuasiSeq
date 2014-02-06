@@ -19,9 +19,9 @@
 \item{parms}{matrix of estimated coefficients for each gene}	
 }
 
-\author{Steve Lund \email{lunds@iastate.edu}}
+\author{Steve Lund \email{lundsp@gmail.com}}
 
-     \keyword{RNA-seq, quasi-likelihood, differential expression}
+     \keyword{RNA-seq, quasi-likelihood, differential expression, Poisson}
 
 
 

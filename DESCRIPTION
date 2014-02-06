@@ -1,19 +1,15 @@
 Package: QuasiSeq
-Version: 1.0-2
-Date: 2012-05-07
-Title: QuasiSeq
-Author: Steve Lund <lunds@iastate.edu>
-Maintainer: Steve Lund <lunds@iastate.edu>
-Depends: R (>= 2.14.1), fields, edgeR
-Imports:
-Suggests: MASS
-Description: This package is used to apply the QL, QLShrink and
-        QLSpline methods (Lund, Nettleton, McCarthy, and Smyth, 2012)
-        to quasi-Poisson or quasi-negative binomial models for
-        identifying differentially expressed genes in RNA-seq data.
+Version: 1.0-3
+Date: 2014-02-06
+Title: Analyzing RNA sequence count tables using quasi-likelihood
+Author: Steve Lund <lundsp@gmail.com> and Long Qu <long.qu@wright.edu>
+Maintainer: Steve Lund <lundsp@gmail.com>
+Depends: R (>= 3.0.2)
+Imports: edgeR, Matrix, mgcv
+Suggests:
+Description: This package is used to apply the QL, QLShrink and QLSpline methods (Lund, Nettleton, McCarthy, and Smyth, 2012) to quasi-Poisson or quasi-negative binomial models for identifying differentially expressed genes in RNA-seq data.
 License: GPL (>= 2)
-URL: http://www.r-project.org,
-BugReports: http://abc.bugtracker.url
-Packaged: 2012-06-25 15:34:26 UTC; spl
+Packaged: 2014-02-12 17:37:38 UTC; spl
+NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2012-06-25 17:01:26
+Date/Publication: 2014-02-13 00:20:14
