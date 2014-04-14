@@ -1,10 +1,11 @@
 
-QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Model = "NegBin", print.progress = TRUE, 
+QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Model = "NegBin", method="glm", print.progress = TRUE, 
     NBdisp = "trend", ...) {
+if(length(grep(method,c("optim","glm")))!=1) stop(paste("Supplied method argument =",method,"does not uniquely match either 'optim' or 'glm'."))
     if(is.data.frame(counts)) counts<-as.matrix(counts)
     ### Note: First element of design.list should pertain to overall full model.  This is the design used to obtain
     ### dispersion estimates for quasi-likelihood models.
-    if(any(rowSums(counts)==0)) stop(paste(sum(rowSums(counts)==0)," genes have 0 counts across all samples.  Please remove genes with zero total counts before analyzing.",sep=""))
+    if(any(rowSums(counts)==0)) stop(cat(sum(rowSums(counts)==0)," genes have 0 counts across all samples. \n Please remove genes with zero total counts before analyzing.\n",sep=""))
     ### Check for errors
     if (any(round(counts) != counts)) 
         stop("Count data contains non-integers.")
@@ -12,17 +13,17 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
         stop("Count data contains negative counts.")
     
     if (!Model %in% c("NegBin", "Poisson")) 
-        stop("Unidentified Model: Model must be either 'NegBin' or 'Poisson'.")
+        stop(cat("Unidentified Model: Model must be either 'NegBin' or 'Poisson'.\n"))
     if (Model == "NegBin") {
         
         if (!NBdisp[1] %in% c("trend", "common") & length(NBdisp) != nrow(counts)) 
-            stop("Unidentified NegBin Dispersion: NBdisp must be set as 'trend' or 'common' to estimate negative binomial dispersion from data using GLM edgeR (McCarthy et al., 2012),\n or it must be a vector providing negative binomial dispersion parameter value to use for each gene.")
+            stop(cat("Unidentified NegBin Dispersion: NBdisp must be set as 'trend' or 'common' to estimate negative binomial dispersion from data using GLM edgeR (McCarthy et al., 2012),\n or it must be a vector providing negative binomial dispersion parameter value to use for each gene.\n"))
         
         if (length(NBdisp) == nrow(counts) & !is.numeric(NBdisp)) 
-            stop("NBdisp contains non-numeric values.\n\tAll negative binomial dispersion parameters must be non-negative real numbers.")
+            stop(cat("NBdisp contains non-numeric values.\n\tAll negative binomial dispersion parameters must be non-negative real numbers.\n"))
         
         if (length(NBdisp) == nrow(counts) & any(NBdisp < 0)) 
-            stop("NBdisp contains negative values.\nAll negative binomial dispersion parameters must be non-negative real numbers.")
+            stop(cat("NBdisp contains negative values.\nAll negative binomial dispersion parameters must be non-negative real numbers.\n"))
     }
     
     ### Fit model and evaluate deviance under each design provided in design.list
@@ -38,10 +39,10 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
             
             ### Check for errors if the current model design is specified as a vector
             if (p[jj] > p[1]) 
-                stop(paste("Full model design must be first element in 'design.list'.\n'p' for element", jj, "is larger than 'p' for first element,\nindicating first element does not provide full model design."))
+                stop(cat("Full model design must be first element in 'design.list'.\n'p' for element", jj, "is larger than 'p' for first element,\nindicating first element does not provide full model design.\n"))
             if (length(design) != n) 
-                stop(paste("Element", jj, "in 'design.list' has length", length(design), ".\nDesign vectors must have length", 
-                  n, "(to match number of columns in data)."))
+                stop(cat("Element", jj, "in 'design.list' has length", length(design), ".\nDesign vectors must have length", 
+                  n, "(to match number of columns in data).\n"))
         }
         
         if (is.matrix(design)) {
@@ -52,10 +53,10 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
             ### stop(paste('The first column of matrix in element',jj,'of 'design.list' is not a column of 1s for the
             ### intercept. Please include intercept.'))
             if (nrow(design) != n) 
-                stop(paste("Element", jj, "in 'design.list' has", nrow(design), "rows.\nDesign matrices must have", 
-                  n, "rows (to match number of columns in data)."))
+                stop(cat("Element", jj, "in 'design.list' has", nrow(design), "rows.\nDesign matrices must have", 
+                  n, "rows (to match number of columns in data).\n"))
             if (p[jj] > p[1]) 
-                stop(paste("Full model design must be first element in 'design.list'.\n'p' for element", jj, "is larger than 'p' for first element,\nindicating first element does not provide full model design."))
+                stop(cat("Full model design must be first element in 'design.list'.\n'p' for element", jj, "is larger than 'p' for first element,\nindicating first element does not provide full model design.\n"))
         }
         
         ### Analyze using quasi-negative binomial model, if chosen
@@ -90,7 +91,7 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
             
             ### Analyze genes with positive dispersion parameters using quasi-negative binomial model
             if (any(nb.disp > 0)) 
-                res <- NBDev(counts[nb.disp > 0, ], design, log.offset, nb.disp[nb.disp > 0], print.progress)
+                res <- NBDev(counts[nb.disp > 0, ], design, log.offset, nb.disp[nb.disp > 0],method, print.progress)
             
             ### If present, analyze genes for which nb.disp==0 using quasi-Poisson model
             if (any(nb.disp == 0)) {
@@ -126,7 +127,7 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
         ### in design.list, which should be the full model
         
         if (is.null(test.mat)) {
-            print("Note: 'test.mat' not provided. Comparing each model \nfrom 'design.list' to first model in 'design.list', which must be the full model")
+            cat("Note: 'test.mat' not provided. Comparing each model \nfrom 'design.list' to first model in 'design.list', which must be the full model\n")
             test.mat <- cbind(1, 2:length(design.list))
             rownames(test.mat) <- paste("Design", 1, " vs Design", 2:length(design.list), sep = "")
         }
