@@ -49,6 +49,12 @@ spline.pred<-predict(spline.fit,x=log(mn.cnt))$y
 
 fit.method<-"spline"
 
+#if(spline.fit$df==0){	
+#	fit.method<-"locfit curve"
+#	print("Spline fitting failed.  Using locfit instead.")
+#	fit<-locfit(y~lp(log(mn.cnt)))
+#	spline.fit<-list(fitted.values=predict(fit,newdata=log(mn.cnt)),eff.df=fit$dp["df1"])
+#}
 
 ### Obtain estimate for prior degrees of freedom and scaling factor after adjusting for cubic spline fit
 y2<-phi.hat/exp(spline.pred)
@@ -95,7 +101,7 @@ phi.spline<-(D0*exp(spline.pred)*phi0+(den.df)*phi.hat)/(D0+den.df)
 if(D0==Inf){ 
 	warning("D0 estimate is infinity for QLSpline (there's little scatter in original dispersion estimates around fitted spline).
  QLSpline dispersions set to fitted cubic spline (use 'Plot=TRUE' to view) with no uncertainty.")
-	phi.spline<-exp(spline.pred)
+	phi.spline<-exp(spline.fit$fitted.values)
 }
 if(Model=="Poisson") phi.spline[phi.spline<1]<-1
 

@@ -63,11 +63,9 @@ sim.mn2<-t(t(sim.mn[,trt])*sim.offset)
 simdat<-matrix(rnbinom(n.samp*n.genes,mu=sim.mn2,size=1/size),n.genes,n.samp)
 
 ### Simulate estimated dispersions to save time
-
 ################################################################
 ## THIS STEP SHOULD NOT BE PERFORMED WHEN ANALYZING REAL DATA ##
 ################################################################
-
 est.nb.disp<-size*rchisq(n.genes,n.samp-2)/(n.samp-2)
 est.nb.disp<-est.nb.disp
 
@@ -83,9 +81,20 @@ design.list[[2]]<-rep(1,length(trt))
 
 log.offset<-log(apply(simdat,2,quantile,.75))
 
+### Analyze using QL, QLShrink and QLSpline methods applied to quasi-Poisson model
+fit<-QL.fit(simdat, design.list,log.offset=log.offset, Model="Poisson")
+
+results<-QL.results(fit)
+
+### How many significant genes at FDR=.05 from QLSpline method?
+apply(results$Q.values[[3]]<.05,2,sum)
+
+### Indexes for Top 10 most significant genes from QLSpline method
+head(order(results$P.values[[3]]), 10)
+
 ### Analyze using QL, QLShrink and QLSpline methods 
 ### applied to quasi-negative binomial model
-fit<-QL.fit(simdat, design.list,log.offset=log.offset, nb.disp=est.nb.disp, Model="NegBin")
+fit2<-QL.fit(simdat, design.list,log.offset=log.offset, nb.disp=est.nb.disp, Model="NegBin")
 
 ##########################################################
 ## Note: 'nb.disp' typically will not be specified when ##
@@ -94,13 +103,13 @@ fit<-QL.fit(simdat, design.list,log.offset=log.offset, nb.disp=est.nb.disp, Mode
 ## dispersions from being estimated from the data.      ##
 ##########################################################
 
-results<-QL.results(fit)
+results2<-QL.results(fit2)
 
 ### How many significant genes at FDR=.05 for QLSpline method?
-apply(results$Q.values[[3]]<.05,2,sum)
+apply(results2$Q.values[[3]]<.05,2,sum)
 
 ### Indexes for Top 10 most significant genes from QLShrink method
-head(order(results$P.values[[2]]), 10)
+head(order(results2$P.values[[2]]), 10)
 }
      \keyword{RNA-seq, quasi-likelihood, differential expression}
 

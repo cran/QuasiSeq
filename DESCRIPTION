@@ -1,15 +1,15 @@
 Package: QuasiSeq
-Version: 1.0-4
-Date: 2014-04-14
-Title: Analyzing RNA sequence count tables using quasi-likelihood
+Version: 1.0-5
+Date: 2015-01-05
+Title: Analyzing RNA Sequence Count Tables Using Quasi-likelihood
 Author: Steve Lund <lundsp@gmail.com> and Long Qu <long.qu@wright.edu>
 Maintainer: Steve Lund <lundsp@gmail.com>
-Depends: R (>= 3.0.2)
+Depends: R (>= 3.1.2)
 Imports: edgeR, Matrix, mgcv
 Suggests:
-Description: This package is used to apply the QL, QLShrink and QLSpline methods (Lund, Nettleton, McCarthy, and Smyth, 2012) to quasi-Poisson or quasi-negative binomial models for identifying differentially expressed genes in RNA-seq data.
+Description: Identify differentially expressed genes in RNA-seq count data using quasi-Poisson or quasi-negative binomial models with QL, QLShrink and QLSpline methods (Lund, Nettleton, McCarthy, and Smyth, 2012).
 License: GPL (>= 2)
-Packaged: 2014-04-14 16:47:36 UTC; spl
+Packaged: 2015-01-05 18:44:04 UTC; spl
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2014-04-14 20:03:25
+Date/Publication: 2015-01-05 20:58:47

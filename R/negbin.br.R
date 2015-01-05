@@ -7,7 +7,7 @@
 ### This is only a modified version of stats::glm.fit(). This is not to be directly used by any user.
 negbin.br=function( link = "log", overdisp = stop("'overdisp' must be specified"))
 {
-	mu.eta=variance=linkfun=function(...){return('Pass CRAN checker.')}
+	mu.eta=variance=linkfun=function(...){return('Shut up CRAN checker.')}
 	ans=mgcv::negbin(1/overdisp,link)
 	assign('variance', ans$variance, envir=environment(ans$variance))
 	assign('mu.eta', ans$mu.eta, envir=environment(ans$variance))

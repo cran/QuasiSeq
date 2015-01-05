@@ -1,4 +1,4 @@
-export(QL.fit, QL.results)
+export(NBDev, PoisDev, QL.fit, QL.results)
 import(edgeR)
 
 #import(MASS)
