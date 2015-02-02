@@ -101,7 +101,7 @@ phi.spline<-(D0*exp(spline.pred)*phi0+(den.df)*phi.hat)/(D0+den.df)
 if(D0==Inf){ 
 	warning("D0 estimate is infinity for QLSpline (there's little scatter in original dispersion estimates around fitted spline).
  QLSpline dispersions set to fitted cubic spline (use 'Plot=TRUE' to view) with no uncertainty.")
-	phi.spline<-exp(spline.fit$fitted.values)
+	phi.spline<-exp(spline.pred)
 }
 if(Model=="Poisson") phi.spline[phi.spline<1]<-1
 
