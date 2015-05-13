@@ -6,7 +6,8 @@
        Fit a quasi-likelihood model to RNA-seq expression count data using the methods detailed in Lund, Nettleton, McCarthy, and Smyth (2012).}
      \usage{
     QL.fit(counts,design.list, test.mat=NULL, log.offset=NULL, 
-    Model="NegBin", print.progress=TRUE, NBdisp="trend", ...)
+           Model="NegBin", print.progress=TRUE, NBdisp="trend", 
+           bias.fold.tolerance=1.10, ...)
      }
      \arguments{
       \item{counts}{RNA-seq data matrix of integer expression counts.  Each row contains observations from a single gene. Each column contains observations from a single experimental unit.}
@@ -16,6 +17,7 @@
 	\item{Model}{Must be one of "Poisson" or "NegBin", specifying use of a quasi-Poisson or quasi-negative binomial model, respectively.}
 	\item{print.progress}{logical. If \code{TRUE}, updates are provided regard what gene (row number) is being analyzed.  Updates occur frequently to start then eventually occur every 5000 genes.}
       \item{NBdisp}{Used only when \code{Model="NegBin"}. Must be one of "trend", "common" or a vector of non-negative real numbers with length equal to \code{nrow(counts)}. Specifying \code{NBdisp="trend"} or \code{NBdisp="common"} will use {\link{estimateGLMTrendedDisp}} or \code{\link{estimateGLMCommonDisp}}, respectively, from the package \code{edgeR} to estimate negative binomial dispersion parameters for each gene.  Estimates obtained from other sources can be used by entering \code{NBdisp} as a vector containing the negative binomial dispersion value to use for each gene when fitting quasi-likelihood model.}
+	\item{bias.fold.tolerance}{A numerical value no smaller than 1. If the bias reduction of maximum likelihood estimates of (log) fold change is likely to result in a ratio of fold changes greater than this value, then bias reduction will be performed on such genes. Setting \code{bias.fold.tolerance=Inf} will completely disable bias reduction;  setting \code{bias.fold.tolerance=1} will always perform bias reduction.  See \code{\link{NBDev}} for details. } 
 	\item{...}{arguments to be passed to the function \code{\link{estimateGLMTrendedDisp}} or \code{\link{estimateGLMCommonDisp}} from the package \code{edgeR}.}
 	}
 
@@ -29,7 +31,8 @@
 	\item{"Model"}{Either "Poisson" or "NegBin", specifying which model (quasi-Poisson or quasi-negative binomial, respectively) was used.}
 	\item{"nb.disp"}{Only appears when \code{Model="NegBin"}.  Vector providing negative binomial dispersion parameter estimate used during fitting of quasi-negative binomial model for each gene.} 
 	\item{fitted.values}{matrix of fitted mean values}
-	\item{coefficients}{matrix of estimated coefficients for each gene.  Note that these are given on the log scale. (i.e. intercept coefficient reports log(average count) and non-intercept coefficients report estimated log fold-changes.)  Genes with at least one zero count and initial absolute coefficient estimates greater than three undergo the bias correction of Kosmidis & Firth (2009) to moderate extreme coefficient estimates.}	
+	\item{coefficients}{matrix of estimated coefficients for each gene.  Note that these are given on the log scale. (i.e. intercept coefficient reports log(average count) and non-intercept coefficients report estimated (and bias reduced, when appropriate) log fold-changes.)  %  Genes with at least one zero count and initial absolute coefficient estimates greater than three undergo the bias correction of Kosmidis & Firth (2009) to moderate extreme coefficient estimates.
+	}	
 }
 
 \references{

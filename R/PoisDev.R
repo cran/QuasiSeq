@@ -36,7 +36,10 @@ n<-ncol(counts)
 			if(i%in%c(2,10,100,500,1000,2500,4000,5000*(1:200))&print.progress) print(paste("Analyzing Gene #",i))
 			
 			### Fit GLM
-			res<-glm(counts[i,]~design[,-1],family="poisson",offset=log.offset)	##offset should be given on log scale here
+			res<-withCallingHandlers(
+				glm(counts[i,]~design[,-1],family="poisson",offset=log.offset,method=glm.fit3)	##offset should be given on log scale here
+				, simpleWarning=ignorableWarnings
+			)
 			
 			### Save optimized means (used in Pearson's dispersion estimator)
 			means[i,]<-res$fitted.values

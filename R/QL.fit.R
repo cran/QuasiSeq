@@ -1,6 +1,6 @@
 
 QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Model = "NegBin", print.progress = TRUE, 
-                   NBdisp = "trend", ...) {
+                   NBdisp = "trend", bias.fold.tolerance=1.10, ...) {
   if(is.data.frame(counts)) counts<-as.matrix(counts)
   ### Note: First element of design.list should pertain to overall full model.  This is the design used to obtain
   ### dispersion estimates for quasi-likelihood models.
@@ -97,7 +97,7 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
       
       ### Analyze genes with positive dispersion parameters using quasi-negative binomial model
       if (any(nb.disp > 0)) 
-        res <- NBDev(counts[nb.disp > 0, ], design, log.offset, nb.disp[nb.disp > 0], print.progress)
+        res <- NBDev(counts[nb.disp > 0, ], design, log.offset, nb.disp[nb.disp > 0], print.progress, bias.fold.tolerance=bias.fold.tolerance)
       
       ### If present, analyze genes for which nb.disp==0 using quasi-Poisson model
       if (any(nb.disp == 0)) {

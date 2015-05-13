@@ -1,10 +1,19 @@
 export(NBDev, PoisDev, QL.fit, QL.results)
+
 import(edgeR)
-
-#import(MASS)
-
-importFrom(Matrix, nearPD)
 
 importFrom(mgcv, negbin)
 
-#useDynLib(QuasiSeq, .registration=TRUE)
+importFrom(pracma, broyden)
+
+#importFrom(varComp, informationTypes)
+#import(MASS)
+#importFrom(nleqslv, nleqslv)
+
+
+
+S3method(coef, glm)
+S3method(unique, matrix)
+S3method(duplicated, matrix)
+
+useDynLib(QuasiSeq, .registration =TRUE, .fixes="C_")

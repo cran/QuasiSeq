@@ -1,16 +1,16 @@
-###########################################
-### negbin.br, glm.fit0, and fbrglm were authored by Long Qu <long.qu@wright.edu> and are used during the Firth bias correction
-### for genes with low counts and extreme coefficient estimates
-###########################################
-
-### Fit a negative binomial GLM with Firth correction to avoid extreme parameter estimates in the presence of zeros.
-### All arguments are the same as the usual glm(). The family argument should be the negbin.br().
-glm.fit0 =#evalq(
-function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL, 
+glm.fit3=function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL, 
     mustart = NULL, offset = rep(0, nobs), family = gaussian(), 
     control = list(), intercept = TRUE) 
 {
-	n='Shut up CRAN checker.'
+	glm.control=
+	function (epsilon = 1e-08, maxit = 25, trace = FALSE, ...) 
+	{
+		if (!is.numeric(epsilon) || epsilon <= 0) 
+			stop("value of 'epsilon' must be > 0")
+		if (!is.numeric(maxit) || maxit < 0)  ## allowing zero
+			stop("maximum number of iterations must be >= 0")
+		list(epsilon = epsilon, maxit = maxit, trace = trace)
+	}
     control <- do.call("glm.control", control)
     x <- as.matrix(x)
     xnames <- dimnames(x)[[2L]]
@@ -18,7 +18,7 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
         rownames(y)
     else names(y)
     conv <- FALSE
-    nobs <- NROW(y)
+    nobs =n<- NROW(y)
     nvars <- ncol(x)
     EMPTY <- nvars == 0
     if (is.null(weights)) 
@@ -66,25 +66,32 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
         coefold <- NULL
         eta <- if (!is.null(etastart)) 
             etastart
-        # else if (!is.null(start)) 
-            # if (length(start) != nvars) 
-                # stop(gettextf("length of 'start' should equal %d and correspond to initial coefs for %s", 
-                  # nvars, paste(deparse(xnames), collapse = ", ")), 
-                  # domain = NA)
-            # else {
-                # coefold <- start
-                # offset + as.vector(if (NCOL(x) == 1L) 
-                  # x * start
-                # else x %*% start)
-            # }
+        else if (!is.null(start)) 
+            if (length(start) != nvars) 
+                stop(gettextf("length of 'start' should equal %d and correspond to initial coefs for %s", 
+                  nvars, paste(deparse(xnames), collapse = ", ")), 
+                  domain = NA)
+            else {
+                coefold <- start
+                offset + as.vector(if (NCOL(x) == 1L) 
+                  x * start
+                else x %*% start)
+            }
         else family$linkfun(mustart)
-        mu <- linkinv(eta)
+		
+		init.fit=lm.fit(x, eta, offset=offset)
+		coefold=init.fit$coefficients
+		coefold[is.na(coefold)]=0
+        rk=init.fit$rank
+		
+		mu <- linkinv(eta)
         if (!(validmu(mu) && valideta(eta))) 
             stop("cannot find valid starting values: please specify some", 
                 call. = FALSE)
         devold <- sum(dev.resids(y, mu, weights))
         boundary <- conv <- FALSE
-        for (iter in seq_len(control$maxit)) {
+		iter=1L
+        repeat{
             good <- weights > 0
             varmu <- variance(mu)[good]
             if (any(is.na(varmu))) 
@@ -97,71 +104,55 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
             good <- (weights > 0) & (mu.eta.val != 0)
             if (all(!good)) {
                 conv <- FALSE
-                warning(gettextf("no observations informative at iteration %d", 
-                  iter), domain = NA)
+                warning("no observations informative at iteration ", 
+                  iter)
                 break
             }
-            z <- (eta - offset)[good] + (y - mu)[good]/mu.eta.val[good]
-            w <- sqrt((weights[good] * mu.eta.val[good]^2)/variance(mu)[good])
+            z <- ((eta - offset)[good] + (y - mu)[good]/mu.eta.val[good])
+            w <- (sqrt((weights[good] * mu.eta.val[good]^2)/variance(mu)[good]))
             ngoodobs <- as.integer(nobs - sum(!good))
-			if(FALSE){ ## operational way to reproduce fit
-				tmp.zw=z*w; tmp.tol=min(1e-7, control$epsilon/1000)
-				fit=qr(x[good,,drop=FALSE] *w, tol=tmp.tol)
-				if(FALSE){
-					fit$coefficients=unname(qr.coef(fit, tmp.zw))
-					fit$residuals=qr.resid(fit, tmp.zw)
-					fit$effects=qr.qty(fit, tmp.zw)
-				}else{ ## did not check pivoting yet
-					qq=qr.Q(fit, complete=TRUE)
-					seqRank=seq_len(fit$rank)
-					R=qr.R(fit)
-					fit$effects=drop(crossprod(qq, tmp.zw))
-					fit$coefficients=backsolve(R, fit$effects[seqRank])
-					fit$residuals=drop(tmp.zw-qq[,seqRank,drop=FALSE]%*%fit$effects[seqRank])
-				}
-				fit$pivoted=!all.equal(seq_len(ncol(x)), fit$pivot)
-				fit$tol=tmp.tol
-				class(fit)='list'
-			}else{	### this is faster way to do it, but still tooooo slow compared to C/FORTRAN code
-				lmf=lm.fit(x[good,,drop=FALSE]*w, z*w, tol=min(1e-7, control$epsilon/1000))
-				fit=lmf$qr
-				fit[c('coefficients','residuals','effects')]=lmf[c('coefficients','residuals','effects')]
-				fit$pivoted=!all.equal(seq_len(ncol(x)), fit$pivot)
-				names(fit$effects)=seq_along(fit$effects)
-				names(fit$coefficients)=NULL
-				class(fit)='list'
+            fit <- lm.fit(x =x[good, , drop = FALSE] * w, y = z * w , singular.ok = TRUE, tol = min(1e-07, control$epsilon/1000))
+			
+			if(fit$rank != rk){ ## rank should not change during iterations
+				fit$rank=fit$qr$rank=rk
+				fit$coefficients = qr.coef(fit$qr, z*w)
 			}
-           # fit <- .Call(QuasiSeq:::Cdqrls_stats, x[good, , drop = FALSE] * w, z * w, min(1e-07, control$epsilon/1000), FALSE)
-            if (any(!is.finite(fit$coefficients))) { ## LQ: this shouldn't happen
+            fit$coefficients[is.na(fit$coefficients)]=0
+			
+			if(iter > control$maxit){ ## allows zero maxit 
+				conv=FALSE
+				coef=coefold
+				dev=devold
+				break
+			}
+			
+			if (any(!is.finite(fit$coefficients))) {
                 conv <- FALSE
                 warning(gettextf("non-finite coefficients at iteration %d", 
                   iter), domain = NA)
                 break
             }
             if (nobs < fit$rank) 
-                stop(sprintf(ngettext(nobs, "X matrix has rank %d, but only %d observation", 
-                  "X matrix has rank %d, but only %d observations"), 
+                stop(gettextf("X matrix has rank %d, but only %d observations", 
                   fit$rank, nobs), domain = NA)
-            start[fit$pivot] <- fit$coefficients
+            #start[fit$qr$pivot] <- fit$coefficients
+			start <- fit$coefficients
             eta <- drop(x %*% start)
             mu <- linkinv(eta <- eta + offset)
             dev <- sum(dev.resids(y, mu, weights))
             if (control$trace) 
-                cat("Deviance = ", dev, " Iterations - ", iter, 
-                  "\n", sep = "")
+                cat("Deviance =", dev, "Iterations -", iter, 
+                  "\n")
             boundary <- FALSE
-				class(fit)='qr'
-				hats=rowSums(qr.Q(fit)^2)
-				class(fit)='list'
-            if (!is.finite(dev) || !is.finite(family$adjresponse(hats,mu,weights)) ) {
+            if (!is.finite(dev)) {
                 if (is.null(coefold)) 
                   stop("no valid set of coefficients has been found: please supply starting values", 
                     call. = FALSE)
                 warning("step size truncated due to divergence", 
                   call. = FALSE)
                 ii <- 1
-                while (!is.finite(dev)  || !is.finite(family$adjresponse(hats,mu,weights)) ) {
-                  if (ii > max(1e2, control$maxit) )
+                while (!is.finite(dev)) {
+                  if (ii > control$maxit) 
                     stop("inner loop 1; cannot correct step size", 
                       call. = FALSE)
                   ii <- ii + 1
@@ -172,8 +163,7 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
                 }
                 boundary <- TRUE
                 if (control$trace) 
-                  cat("Step halved: new deviance = ", dev, "\n", 
-                    sep = "")
+                  cat("Step halved: new deviance =", dev, "\n")
             }
             if (!(valideta(eta) && validmu(mu))) {
                 if (is.null(coefold)) 
@@ -183,7 +173,7 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
                   call. = FALSE)
                 ii <- 1
                 while (!(valideta(eta) && validmu(mu))) {
-                  if (ii > max(1e2, control$maxit) ) 
+                  if (ii > control$maxit) 
                     stop("inner loop 2; cannot correct step size", 
                       call. = FALSE)
                   ii <- ii + 1
@@ -194,8 +184,28 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
                 boundary <- TRUE
                 dev <- sum(dev.resids(y, mu, weights))
                 if (control$trace) 
-                  cat("Step halved: new deviance = ", dev, "\n", 
-                    sep = "")
+                  cat("Step halved: new deviance =", dev, "\n")
+            }
+            if (((dev - devold)/(0.1 + abs(dev)) >= control$epsilon) ) {
+                if (is.null(coefold)) 
+                  stop("no valid set of coefficients has been found: please supply starting values", 
+                    call. = FALSE)
+                warning("step size truncated due to increasing deviance", 
+                  call. = FALSE)
+                ii <- 1
+                while ((dev - devold)/(0.1 + abs(dev)) > -control$epsilon) {
+                  if (ii > control$maxit) 
+                    break
+                  ii <- ii + 1
+                  start <- (start + coefold)/2
+                  eta <- drop(x %*% start)
+                  mu <- linkinv(eta <- eta + offset)
+                  dev <- sum(dev.resids(y, mu, weights))
+                }
+                if (ii > control$maxit) 
+                  warning("inner loop 3; cannot correct step size")
+                else if (control$trace) 
+                  cat("Step halved: new deviance =", dev, "\n")
             }
             if (abs(dev - devold)/(0.1 + abs(dev)) < control$epsilon) {
                 conv <- TRUE
@@ -206,43 +216,42 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
                 devold <- dev
                 coef <- coefold <- start
             }
+			if (iter == control$maxit) break
+			iter = iter + 1L
         }
         if (!conv) 
-            warning("glm.fit0: algorithm did not converge", call. = FALSE)
-        if (boundary) ### LQ: this shouldn't happen
-            warning("glm.fit0: algorithm stopped at boundary value", 
+            warning("glm.fit3: algorithm did not converge. Try increasing the maximum iterations", 
+                call. = FALSE)
+        if (boundary) 
+            warning("glm.fit3: algorithm stopped at boundary value", 
                 call. = FALSE)
         eps <- 10 * .Machine$double.eps
         if (family$family == "binomial") {
-            if (any(mu > 1 - eps) || any(mu < eps)) ### LQ: this shouldn't happen
-                warning("glm.fit0: fitted probabilities numerically 0 or 1 occurred", 
+            if (any(mu > 1 - eps) || any(mu < eps)) 
+                warning("glm.fit3: fitted probabilities numerically 0 or 1 occurred", 
                   call. = FALSE)
         }
-        if (family$family == "poisson") {
-            if (any(mu < eps)) ### LQ: this shouldn't happen
-                warning("glm.fit0: fitted rates numerically 0 occurred", 
+        if (family$family == "poisson" || tolower(substr(family$family, 1L, 17L)) == "negative binomial") {
+            if (any(mu < eps)) 
+                warning("glm.fit3: fitted rates numerically 0 occurred", 
                   call. = FALSE)
         }
-		if (substr(family$family,1,17) == "Negative Binomial") {
-            if (any(mu < eps)) ### LQ: this shouldn't happen
-                warning("glm.fit0: fitted means numerically 0 occurred", 
-                  call. = FALSE)
-		}
+
         if (fit$rank < nvars) 
-            coef[fit$pivot][seq.int(fit$rank + 1, nvars)] <- NA
-        xxnames <- xnames[fit$pivot]
+            coef[fit$qr$pivot][seq.int(fit$rank + 1, nvars)] <- NA
+        xxnames <- xnames[fit$qr$pivot]
         residuals <- (y - mu)/mu.eta(eta)
-        fit$qr <- as.matrix(fit$qr)
+        fit$qr$qr <- as.matrix(fit$qr$qr)
         nr <- min(sum(good), nvars)
         if (nr < nvars) {
             Rmat <- diag(nvars)
-            Rmat[1L:nr, 1L:nvars] <- fit$qr[1L:nr, 1L:nvars]
+            Rmat[1L:nr, 1L:nvars] <- fit$qr$qr[1L:nr, 1L:nvars]
         }
-        else Rmat <- fit$qr[1L:nvars, 1L:nvars]
+        else Rmat <- fit$qr$qr[1L:nvars, 1L:nvars]
         Rmat <- as.matrix(Rmat)
         Rmat[row(Rmat) > col(Rmat)] <- 0
         names(coef) <- xnames
-        colnames(fit$qr) <- xxnames
+        colnames(fit$qr$qr) <- xxnames
         dimnames(Rmat) <- list(xxnames, xxnames)
     }
     names(residuals) <- ynames
@@ -269,13 +278,10 @@ function (x, y, weights = rep(1, nobs), start = NULL, etastart = NULL,
     aic.model <- aic(y, n, mu, weights, dev) + 2 * rank
     list(coefficients = coef, residuals = residuals, fitted.values = mu, 
         effects = if (!EMPTY) fit$effects, R = if (!EMPTY) Rmat, 
-        rank = rank, qr = if (!EMPTY) structure(fit[c("qr", "rank", 
-            "qraux", "pivot", "tol")], class = "qr"), family = family, 
-        linear.predictors = eta, deviance = dev, aic = aic.model, 
-        null.deviance = nulldev, iter = iter, weights = wt, prior.weights = weights, 
-        df.residual = resdf, df.null = nulldf, y = y, converged = conv, 
-        boundary = boundary)
+        rank = rank, qr = if (!EMPTY) structure(fit$qr[c("qr", 
+            "rank", "qraux", "pivot", "tol")], class = "qr"), 
+        family = family, linear.predictors = eta, deviance = dev, 
+        aic = aic.model, null.deviance = nulldev, iter = iter, 
+        weights = wt, prior.weights = weights, df.residual = resdf, 
+        df.null = nulldf, y = y, converged = conv, boundary = boundary)
 }
-#, envir=environment(stats::glm.fit)
-#)
-
