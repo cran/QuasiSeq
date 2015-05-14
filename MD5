@@ -1,4 +1,4 @@
-4e2aa639fe3f10aabda6ca3138d66e02 *DESCRIPTION
+1ab40c7dac687d9abccb29c53db11d29 *DESCRIPTION
 594d390e05bc540b61a2d15d05134288 *NAMESPACE
 174a2442be4fd29b54590dd9f0c9b71e *R/NBDev.R
 4a4ed6ea84e0a8a34849a4843239dbea *R/PoisDev.R
@@ -15,7 +15,7 @@ fa8d5a1a83e9062734aeacec909aae0d *man/NBDev.Rd
 10e72ccb792430672e990b52d58919fa *man/PoisDev.Rd
 2ffe7bdc3bdba81dd63195ece0f9d39a *man/QL.fit.Rd
 53d9d152a8ce8a4130c53014120125ad *man/QL.results.Rd
-08a5f1eb38c4c5fd06eb0468642f4be3 *src/Makevars
+2a6f9e9e044a78154d3cfda5936d6f48 *src/Makevars
 f9690c13a341ac9f03fbe234e84e8c3f *src/glmBias.c
 43d7709068b4689b99c61da286fe73f5 *src/registration.c
 67fa004cad585d8d77cbf78c5d394bae *src/uniqueNumericMatrix.cpp

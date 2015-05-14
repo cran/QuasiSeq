@@ -1,7 +1,7 @@
 Package: QuasiSeq
-Version: 1.0-7
-Date: 2015-05-13
-Title: ANALYZING RNA SEQUENCE COUNT TABLES USING QUASI-LIKELIHOOD
+Version: 1.0-8
+Date: 2015-05-14
+Title: Analyzing RNA Sequencing Count Tables Using Quasi-Likelihood
 Authors@R: c(
   person("Steve", "Lund", role=c("aut"), email="lundsp@gmail.com"),
   person("Long", "Qu", role=c("aut", "cre","ctb"), email="long.qu@wright.edu"), 
@@ -14,7 +14,7 @@ Suggests: BB, nleqslv
 Description: Identify differentially expressed genes in RNA-seq count data using quasi-Poisson or quasi-negative binomial models with 'QL', 'QLShrink' and 'QLSpline' methods (Lund, Nettleton, McCarthy, and Smyth, 2012).
 License: GPL (>= 2)
 NeedsCompilation: yes
-Packaged: 2015-05-13 13:59:15 UTC; Long
+Packaged: 2015-05-14 20:54:42 UTC; Long
 Author: Steve Lund [aut],
   Long Qu [aut, cre, ctb],
   Ian Marschner [aut] (The author of glm2::glm.fit2, which was modified
@@ -23,4 +23,4 @@ Author: Steve Lund [aut],
     slightly leading to glm.fit3 in this package.)
 Maintainer: Long Qu <long.qu@wright.edu>
 Repository: CRAN
-Date/Publication: 2015-05-14 01:49:17
+Date/Publication: 2015-05-15 09:13:46
