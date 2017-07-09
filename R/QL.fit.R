@@ -1,6 +1,7 @@
 
-QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Model = "NegBin", print.progress = TRUE, 
-                   NBdisp = "trend", bias.fold.tolerance=1.10, ...) {
+QL.fit <- function(counts, design.list, test.mat = cbind(1L, 2:length(design.list)), log.offset = NULL, Model = "NegBin", print.progress = TRUE, 
+                   NBdisp = "trend", bias.fold.tolerance=1.10, ...) 
+{
   if(is.data.frame(counts)) counts<-as.matrix(counts)
   ### Note: First element of design.list should pertain to overall full model.  This is the design used to obtain
   ### dispersion estimates for quasi-likelihood models.
@@ -23,6 +24,9 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
     
     if (length(NBdisp) == nrow(counts) & any(NBdisp < 0)) 
       stop("NBdisp contains negative values.\nAll negative binomial dispersion parameters must be non-negative real numbers.")
+  }else if(Model == "Poisson"){
+	if(bias.fold.tolerance > 0 && is.finite(bias.fold.tolerance))
+	  message("Currently, bias reduction has not yet been implemented for Poisson model. ")
   }
   
   ### Fit model and evaluate deviance under each design provided in design.list
@@ -30,6 +34,7 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
   p <- NULL
   n <- ncol(counts)  # p is used to store the d.f. for each model (it will be a vector) and n is the total number of samples (also the number of observations for each gene)
   
+  bartEpsilons = matrix(NA_real_, nrow(counts), length(design.list))
   for (jj in 1:length(design.list)) {
     design <- design.list[[jj]]
     
@@ -37,7 +42,7 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
       p <- c(p, length(unique(design)))  ## Record the d.f. for current model
       
       ### Check for errors if the current model design is specified as a vector
-      if (p[jj] > p[1]) 
+      if (p[jj] > p[1L]) 
         stop(paste("Full model design must be first element in 'design.list'.\n'p' for element", jj, "is larger than 'p' for first element,\nindicating first element does not provide full model design."))
       if (length(design) != n) 
         stop(paste("Element", jj, "in 'design.list' has length", length(design), ".\nDesign vectors must have length", 
@@ -54,7 +59,7 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
       if (nrow(design) != n) 
         stop(paste("Element", jj, "in 'design.list' has", nrow(design), "rows.\nDesign matrices must have", 
                    n, "rows (to match number of columns in data)."))
-      if (p[jj] > p[1]) 
+      if (p[jj] > p[1L]) 
         stop(paste("Full model design must be first element in 'design.list'.\n'p' for element", jj, "is larger than 'p' for first element,\nindicating first element does not provide full model design."))
     }
     
@@ -66,20 +71,19 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
         if (length(unique(design)) == 1) 
           design <- matrix(1, ncol(counts), 1)
       }
-      if (jj == 1) {
+      if (jj == 1L) {
         ### Obtain negative binomial dispersion estimates from edgeR, if requested
-        if(NBdisp %in% c("trend", "common")){
+        if(NBdisp[1L] %in% c("trend", "common")){
           
           ### Default to using edgeR's suggested normalization routine
           if (is.null(log.offset)) { 
-            d <- DGEList(counts = counts, group = design[, 2])
+            d <- DGEList(counts = counts, group = grpDuplicated(design))
             d <- calcNormFactors(d)
+          }else {
+			### If provided, use prespecified library size normalizations instead of edgeR's normalization routine
+            d <- DGEList(counts = counts, group = grpDuplicated(design), lib.size = exp(log.offset))
           }
-          
-          ### If provided, use prespecified library size normalizations instead of edgeR's normalization routine
-          if (!is.null(log.offset)) 
-            d <- DGEList(counts = counts, group = design[, 2], lib.size = exp(log.offset))
-          
+		  
           ### If requested, use gene-specific trended dispersion estimates from GLM edgeR (McCarthy et al., 2012).
           if (NBdisp == "trend") 
             nb.disp <- estimateGLMTrendedDisp(d, design)$trended.dispersion
@@ -87,9 +91,8 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
           ### If requested, use common dispersion estimate from GLM edgeR (McCarthy et al., 2012).
           if (NBdisp == "common") 
             nb.disp <- rep(estimateGLMCommonDisp(d, design, ...)$common.dispersion, nrow(counts))
-        }
-        ### If provided, use prespecified dispersion estimates.
-        if (length(NBdisp) == nrow(counts)) {
+        }else if (length(NBdisp) == nrow(counts)) {
+		  ### If provided, use prespecified dispersion estimates.
           if (is.numeric(NBdisp) & !any(NBdisp < 0)) 
             nb.disp <- NBdisp
         }
@@ -97,56 +100,64 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
       
       ### Analyze genes with positive dispersion parameters using quasi-negative binomial model
       if (any(nb.disp > 0)) 
-        res <- NBDev(counts[nb.disp > 0, ], design, log.offset, nb.disp[nb.disp > 0], print.progress, bias.fold.tolerance=bias.fold.tolerance)
+        res <- NBDev(counts[nb.disp > 0, ,drop=FALSE], design, log.offset, nb.disp[nb.disp > 0], print.progress, bias.fold.tolerance=bias.fold.tolerance)
       
       ### If present, analyze genes for which nb.disp==0 using quasi-Poisson model
-      if (any(nb.disp == 0)) {
-        res2 <- PoisDev(counts[nb.disp == 0, ], design, log.offset, print.progress)
-        means <- dev <- rep(NA, nrow(counts))
-        parms <- matrix(NA, nrow(counts), ncol(design))
-        means[nb.disp == 0] <- res2$means
-        dev[nb.disp == 0] <- res2$dev
-        parms[nb.disp == 0, ] <- res2$parms
-        if (any(nb.disp > 0)) {
-          means[nb.disp > 0] <- res$means
-          dev[nb.disp > 0] <- res$dev
-          parms[nb.disp > 0, ] <- res$parms
+      if (any(tmpIdx <- nb.disp == 0)) {
+        res2 <- PoisDev(counts[tmpIdx, ,drop=FALSE], design, log.offset, print.progress)
+        BartEpsilons = dev <- rep(NA_real_, nrow(counts))
+		means <- matrix(NA_real_, nrow(counts), ncol(design))
+        parms <- matrix(NA_real_, nrow(counts), ncol(design))
+        means[tmpIdx,] <- res2$means
+        dev[tmpIdx] <- res2$dev
+        parms[tmpIdx, ] <- res2$parms
+		BartEpsilons[tmpIdx] = res2$bartlett.epsilon
+		tmpIdx = !tmpIdx
+        if (any(tmpIdx)) {
+          means[tmpIdx,] <- res$means
+          dev[tmpIdx] <- res$dev
+          parms[tmpIdx, ] <- res$parms
+  		  BartEpsilons[tmpIdx] = res$bartlett.epsilon
         }
-        res <- list(dev = dev, means = means, parms = parms)
+        res <- list(dev = dev, means = means, parms = parms, barlett.epsilon=BartEpsilons)
       }
     }
     
     ### Analyze using quasi-Poisson model, if chosen
     if (Model == "Poisson") res <- PoisDev(counts, design, log.offset, print.progress)
-    ### Record means and parameter estimate from full model
-    if (jj == 1) {
+    
+	### Record means and parameter estimate from full model
+    if (jj == 1L) {
       means <- res$means
       parms <- res$parms
     }
     deviance.list[[jj]] <- res$dev
+	bartEpsilons[,jj] = res$bartlett.epsilon
   }
   
-  LRT <- num.df <- NULL
+  LRT <- LRT.bart <- num.df <- NULL
   
-  if (length(design.list) > 1) {
+  if (length(design.list) > 1L) {
     ### Compute likelihood ratio test statistics. If not otherwise specified, compare each model to the first model
     ### in design.list, which should be the full model
     
-    if (is.null(test.mat)) {
-      print("Note: 'test.mat' not provided. Comparing each model \nfrom 'design.list' to first model in 'design.list', which must be the full model")
-      test.mat <- cbind(1, 2:length(design.list))
-      rownames(test.mat) <- paste("Design", 1, " vs Design", 2:length(design.list), sep = "")
+    if (is.null(rownames(test.mat))) {
+      # message("Note: 'test.mat' not provided. Comparing each model \nfrom 'design.list' to first model in 'design.list', which must be the full model")
+      # test.mat <- cbind(1, 2:length(design.list))
+      rownames(test.mat) <- paste0('Design',test.mat[,1L],' vs Design',test.mat[,2L])
     }
     
     for (i in 1:nrow(test.mat)) {
-      i1 <- test.mat[i, 1]
-      i2 <- test.mat[i, 2]
+      i1 <- test.mat[i, 1L]
+      i2 <- test.mat[i, 2L]
       num.df <- c(num.df, abs(p[i2] - p[i1]))
-      LRT <- cbind(LRT, -(deviance.list[[i2]] - deviance.list[[i1]])/(p[i2] - p[i1]))
+	  tmp  = -(deviance.list[[i2]] - deviance.list[[i1]])/(p[i2] - p[i1])
+      LRT <- cbind(LRT, pmax(0, tmp))
+	  LRT.bart = cbind(LRT.bart, pmax(0, tmp/(1+ (bartEpsilons[,i2]-bartEpsilons[,i1])/(p[i2] - p[i1]))))
     }
-    colnames(LRT) <- rownames(test.mat)
+    colnames(LRT) <- colnames(LRT.bart) <- rownames(test.mat)
   }
-  den.df <- (n - p[1])
+  den.df <- (n - p[1L])
   
   ### Compute deviance dispersion estimate
   phi.hat.dev <- deviance.list[[1]]/den.df
@@ -160,9 +171,17 @@ QL.fit <- function(counts, design.list, test.mat = NULL, log.offset = NULL, Mode
   phi.hat.pearson <- rowSums(phi.hat.pearson)/den.df
   
   if (Model == "Poisson") 
-    return(list(LRT = LRT, phi.hat.dev = phi.hat.dev, phi.hat.pearson = phi.hat.pearson, mn.cnt = rowMeans(counts), 
-                den.df = den.df, num.df = num.df, Model = Model, fitted.values = means, coefficients = parms))
+    return(list(
+		LRT = LRT, LRT.Bart=LRT.bart, 
+		phi.hat.dev = phi.hat.dev, phi.hat.pearson = phi.hat.pearson, 
+        den.df = den.df, num.df = num.df, 
+		mn.cnt = rowMeans(counts), fitted.values = means, coefficients = parms,
+		Model = Model))
   if (Model == "NegBin") 
-    return(list(LRT = LRT, phi.hat.dev = phi.hat.dev, phi.hat.pearson = phi.hat.pearson, mn.cnt = rowMeans(counts), 
-                den.df = den.df, num.df = num.df, Model = Model, NB.disp = nb.disp, fitted.values = means, coefficients = parms))
+    return(list(
+		LRT = LRT, LRT.Bart=LRT.bart, 
+		phi.hat.dev = phi.hat.dev, phi.hat.pearson = phi.hat.pearson, 
+		den.df = den.df, num.df = num.df, 
+		mn.cnt = rowMeans(counts), NB.disp = nb.disp, fitted.values = means, coefficients = parms,
+		Model = Model))
 } 

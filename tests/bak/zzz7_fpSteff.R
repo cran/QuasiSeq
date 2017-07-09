@@ -1,56 +1,6 @@
-#' Firth-Type Bias-Reduced Negative Binomial Log-Linear Model
-#' 
-#' This is the estimation algorithm for generalized linear model with negative binomial responses
-#' and log link function. Sore functions are modified properly such that 
-#' bias in the coefficients are reduced. 
-#' 
-#' @param x,y,weights,offset Defined the same as in \code{\link{glm.fit}}.
-#' @param family The same as in \code{\link{glm.fit}}, but the default 
-#'      (and the only currently supported) choice is \code{negbin{'log', odisp}}, 
-#'      where \code{odisp} is defined below.
-#' @param odisp A numeric scalar of negative binomial over-dispersion parameter. 
-#'      This is the same as \code{1/size}, where \code{size} is the parameter 
-#'      as in \code{\link{dnbinom}}.
-#' @param control A list returned from \code{fbrNBglm.control}.
-#' @return It depends.
-#' @export
-#' @name fbrNBglm
-#' @rdname fbrNBglm
-#' @author Long Qu <rtistician@gmail.com>
-#' @keywords models regression iteration
-#' @concept bias reduction
-#' @concept Firth
-#' @examples 
-#'  ## prepare example data
-#'  data(mockRNASeqData)
-#'  x=mockRNASeqData$design.matrix
-#'  y=mockRNASeqData$counts[3462,]
-#'  offset = log(mockRNASeqData$estimated.normalization)
-#'  overDisp = mockRNASeqData$estimated.nbdisp[3462]
-#'  nbfam = negbin('log', overDisp)
-#'  
-#'  ## usual maximum likelihood estimate
-#'  coef(glm.fit(x, y, offset=offset, family=nbfam))
-#'  
-#'  ## 2nd-order biased reduced fit with observed information
-#'  ctrl= fbrNBglm.control(infoParms=list(j=1,k=1,m=1), order=2L, coefOnly=TRUE)
-#'  fbrNBglm.fit(x, y, offset=offset, family=nbfam, control=ctrl)
-#'
-#'  ## 2nd-order biased reduced fit with expected information
-#'  ctrl= fbrNBglm.control(infoParms=list(j=0,k=1,m=1), order=2L, coefOnly=TRUE)
-#'  fbrNBglm.fit(x, y, offset=offset, family=nbfam, control=ctrl)
-#'  
-#'  ## 3rd-order biased reduced fit with observed information
-#'  ## Not available yet if offsets are non-constants with a treatment
-#'  offset.avg = ave(offset, mockRNASeqData$treatment)
-#'  ctrl= fbrNBglm.control(infoParms=list(j=1,k=1,m=1), order=3L, coefOnly=TRUE)
-#'  fbrNBglm.fit(x, y, offset=offset.avg, family=nbfam, control=ctrl)
-#'
-fbrNBglm.fit=function(x, y, weights = rep(1, length(y)), 
-                      offset = rep(0, length(y)), family, 
-                      odisp, control = fbrNBglm.control()) 
+	fbrNBglm.fit=function(x, y, weights = rep(1, length(y)), offset = rep(0, length(y)), family, link='log', odisp, control = fbrNBglm.control()) 
 {
-	if(missing(family)) family=negbin('log', odisp)
+	if(missing(family)) family=negbin(link, odisp)
 	if(family$link!='log') stop('Currently only log link has been implemented.')
 	
 	nobs=NROW(y)
@@ -58,10 +8,8 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 	ngood=length(good.weights)
 	if(ngood==0L) stop('None of the weights is positive')
 	ww=weights[good.weights]
-	if(any(ww!=ww[1L])) {
-		warning('Bias reduction in the presence of non-equal positive prior weights has not been thoroughly tested. Use this option with caution.')
-		# ww[]=1
-	}
+	if(any(ww!=ww[1L])) stop('Bias reduction in the presence of non-equal positive prior weights is currently not available')
+	ww[]=1
 
 	if(!is.matrix(x)) x=as.matrix(x)
 	ncolx=NCOL(x)
@@ -105,7 +53,6 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 	infoParmsj=control$infoParms$j
 	infoParmsk=control$infoParms$k
 	infoParmsm=control$infoParms$m
-	fbrOrder =control$order
 	
 	.C(C_initQRdecomp, ngood, rk)
 	on.exit(.C(C_finalQRdecomp))  ## should not call adjScoreFunc anymore
@@ -131,7 +78,7 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 		this.bias=try(.Call(C_getGlmBias, rtwx = this.w2x, wrt = sqrt(this.weight), ngood, rk))
 		if(inherits(this.bias, 'try-error')) { ## original R version that is known working. 
 			## the next three rows consume 60% of the time
-			this.qr=qr(this.w2x,  tol=control$qr.tol)
+			this.qr=qr(this.w2x,  tol=qr.tol)
 			this.hatd=.rowSums(qr.Q(this.qr)[,seq_len(this.qr$rank), drop=FALSE]^2, ngood, this.qr$rank)## not affected by pivoting
 			this.bias=qr.coef(this.qr, -0.5*this.hatd/sqrt(this.weight))
 			this.bias[is.na(this.bias)]=0
@@ -161,10 +108,7 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 		oneWayX=1 * (group==rep(seq_len(rk), each=ngood)); dim(oneWayX)=c(ngood, rk)
 	
 		#exact = (infoParmsk==0 || infoParmsj==1) && all(constOffset)
-		exact =  constOffset && (
-			(fbrOrder==2L && (infoParmsk==0 || infoParmsj==1) ) || 
-			(fbrOrder==3L && infoParmsj==1) 
-			)
+		exact = (infoParmsk==0 || infoParmsj==1) && constOffset
 		#attr(exact, 'group')=unclass(group)
 		attr(exact, 'group')=group
 		attr(exact, 'oneWayX')=oneWayX
@@ -172,16 +116,10 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 		exact
 	}
 	
-	fullFactorial1Step=function( ## yy, odisp, ngood, rk, oo
-		groupX, 
-		ns=.colSums(groupX, ngood, rk), 
-		ybars=crossprod(groupX, yy)/ns,
-		off=crossprod(groupX, oo)/ns, 
-		fitted.mean    ## only for shuting up CRAN checker
-		) 
-	{	#ns=.colSums(groupX, ngood, rk)
-		#fitted.mean=ybars=crossprod(groupX, yy)/ns  
-		#off=crossprod(groupX, oo)/ns  
+	fullFactorial1Step=function(groupX) ## yy, odisp
+	{	ns=.colSums(groupX, ngood, rk)
+		fitted.mean=ybars=crossprod(groupX, yy)/ns  
+		off=crossprod(groupX, oo)/ns  
 		eval(expr.1step)   # defined below
 		fitted.coef=xxuniqInv %*% ( linkfun(fitted.mean)-off)
 	}
@@ -190,20 +128,12 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 		expression(
 			fitted.mean <- (ns*ybars+0.5)/(ns-odisp*.5)
 		)
-	}else if(infoParmsj==1 && fbrOrder ==2L){ # linear solution (including observed information)
+	}else if(infoParmsj==1){ # linear solution (including observed information)
 		expression({
 			.tmp=2*ns + infoParmsk * odisp^infoParmsm
 			fitted.mean=(.tmp*ybars+1)/(.tmp-odisp)
 		})
-	}else if (infoParmsj==1 && fbrOrder ==3L){ # 3rd order: quadratic solution 
-		expression({
-			.tmpktaum=infoParmsk*odisp^infoParmsm
-			.tmpc=1+.tmpktaum*ybars;
-			.tmpb=12*ns+24*ns^2*ybars+5*.tmpktaum+12*ns*ybars*.tmpktaum+6*ybars*.tmpktaum^2-ybars*.tmpktaum*odisp;
-			.tmpa=-24*ns^2+12*ns*odisp-odisp^2-12*ns*.tmpktaum-6*.tmpktaum^2+7*.tmpktaum*odisp;
-			fitted.mean = (-.tmpb - sqrt(.tmpb^2 - 4 * .tmpa * .tmpc))/2/.tmpa
-		})
-	}else if(infoParmsj==0){ # quadratic solution
+	}else if(infoParsmj==0){ # quadratic solution
 		expression({
 			.tmpktaum=infoParmsk*odisp^infoParmsm
 			.tmp=.5*(ybars+(odisp-2*ns)/.tmpktaum/odisp - 1/odisp)
@@ -256,17 +186,17 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 		
 		if(FFtestRslt){
 			doIteration=FALSE
-			start=fullFactorial1Step(oneWayX, ns=oneWayN)
+			start=fullFactorial1Step(oneWayX)
 			attr(start, 'method')='exact'
 			attr(start, 'success')=TRUE
-			attr(start, 'iter')=0L
+			attr(start, 'iter')=1L
 		}else{
 			doIteration=TRUE
 			if(is.null(start)) eval(getMuStart)
 						
 			ss=exp(oo)
 			ssOdisp=ss*odisp
-			if(infoParmsj==1 && infoParmsk==1 && infoParmsm==1 && fbrOrder==2L){ ## OI full factorial iteratation equation
+			if(infoParmsj==1 && infoParmsk==1 && infoParmsm==1){ ## OI full factorial iteratation equation
 				workMat=cbind(ss, yy, ss*(1+yy*odisp))
 				rhs=function(this.mu){
 					onePlusOdispMuScale=1+ssOdisp*this.mu[oneWayGroup]
@@ -277,8 +207,15 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 					if(any(is.na(ans))) ans=exp(log(ssSyssY[, 2L])-log(ssSyssY[, 1L]))+.5*exp(log(ssSyssY[, 3L])-2*log(ssSyssY[,1L]))
 					ans
 				}
-			}else if(infoParmsj==1 && fbrOrder==3L){ ## 3rd order correction
-				.NotYetImplemented()
+				rhs1=function(this.mu, grpId){
+					onePlusOdispMuScale=1+ssOdisp*this.mu #[oneWayGroup]
+					tmpMat=workMat/onePlusOdispMuScale
+					tmpMat[,3L]=tmpMat[,3L]/onePlusOdispMuScale
+					ssSyssY=crossprod(oneWayX[,grpId], tmpMat)
+					ans=ssSyssY[, 2L]/ssSyssY[, 1L]+.5*ssSyssY[, 3L]/ssSyssY[,1L]^2
+					if(any(is.na(ans))) ans=exp(log(ssSyssY[, 2L])-log(ssSyssY[, 1L]))+.5*exp(log(ssSyssY[, 3L])-2*log(ssSyssY[,1L]))
+					ans
+				}
 			}else{	## full factorial iteration (general) equation
 				tmp=ss*infoParmsk*odisp^infoParmsm
 				workMat=cbind(ss, yy, ss2=ss*tmp, sy=yy*tmp)
@@ -290,9 +227,17 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 					( ssSyssY[, 1L]*ssSyssY[, 2L] + .5*(ssSyssY[, 4L] +ssSyssY[, 1L]  )  )/
 						( ssSyssY[, 1L]^2 + .5*ssSyssY[, 3L]  )
 				}
+				rhs1=function(this.mu, grpId){
+					onePlusOdispMuScale=1+ssOdisp*this.mu #[oneWayGroup]
+					tmpMat=workMat/onePlusOdispMuScale
+					tmpMat[,3L:4L]=tmpMat[,3L:4L]/onePlusOdispMuScale^infoParmsj
+					ssSyssY=crossprod(oneWayX[,grpId], tmpMat)
+					( ssSyssY[, 1L]*ssSyssY[, 2L] + .5*(ssSyssY[, 4L] +ssSyssY[, 1L]  )  )/
+						( ssSyssY[, 1L]^2 + .5*ssSyssY[, 3L]  )
+				}
 			}
 			
-			tryCatch({ ## fixed-point algorithm with bisection bracketing and Steffensen acceleration
+			tryCatch({ ## fixed-point with Steffensen algorithm
 				it=1L
 				iterMax=control$maxit
 				startExpXb0=startExpXb1=as.vector(crossprod(oneWayX, exp(xx%*%start))/oneWayN)
@@ -301,7 +246,7 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 				startAdjscore = rhs(startExpXb0) - startExpXb0
 					yy.bak=yy; oo.bak=oo
 					yy=yy/exp(oo-mean(oo)); oo[]=mean(oo)
-				fff=fullFactorial1Step(oneWayX, ns=oneWayN)
+				fff=fullFactorial1Step(oneWayX)
 					yy=yy.bak; oo=oo.bak
 				fffmu=as.vector(crossprod(oneWayX, exp(xx%*%fff))/oneWayN)
 				fffAdjscore=rhs(fffmu) - fffmu
@@ -311,70 +256,54 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 					startAdjscore = fffAdjscore
 				}
 				
-				bracketFactor = rep(0.618, rk)
-				expXbLower =expXbUpper = startExpXb0
-				idx0 = startAdjscore < 0
-				if(any( idx0 ) ){
-					bf=bracketFactor; bf[!idx0]=1 
-					repeat{
-						expXbLower = expXbLower * bf
-						tmpIdx = rhs(expXbLower)[idx0] > expXbLower[idx0]
-						if(all(tmpIdx)) { break
-						}else bf[idx0 & tmpIdx] = 1
-					}
-				}
-				idx0=!idx0
-				if ( any(idx0) ){
-					bf=bracketFactor; bf[!idx0]=1
-					repeat{
-						expXbUpper= expXbUpper / bf
-						tmpIdx = rhs(expXbUpper)[idx0] < expXbUpper[idx0]
-						if(all(tmpIdx)) { break
-						}else bf[idx0 & tmpIdx] = 1
-					}
-				}
-				
-				rhsNextExpXb=rhs(startExpXb1)
-				while(it<=iterMax){ ## bisection-protected Steffensen-accelerated fixed-point iterations
-					nextExpXb=rhsNextExpXb
-					if(it%%2L==0L && all((steffDenom<-nextExpXb-2*startExpXb1+startExpXb0)!=0)) {
-						bak=nextExpXb
-						nextExpXb=startExpXb0-(startExpXb1-startExpXb0)^2/steffDenom  #  Steffensen's method (Aitken acceleration)
-						if(any(!is.finite(nextExpXb))) {
-							nextExpXb=bak
+				if(FALSE){
+					bracketFactor = rep(0.618, rk)
+					expXbLower =expXbUpper = startExpXb0
+					idx0 = startAdjscore < 0
+					if(any( idx0 ) ){
+						bf=bracketFactor; bf[!idx0]=1 
+						repeat{
+							expXbLower = expXbLower * bf
+							tmpIdx = rhs(expXbLower)[idx0] > expXbLower[idx0]
+							if(all(tmpIdx)) { break
+							}else bf[idx0 & tmpIdx] = 1
 						}
 					}
-					
-					outsideIdx =(nextExpXb < expXbLower | nextExpXb > expXbUpper) 
-					if(any(outsideIdx)) { ## fixed point steps outside bracketing interval
-						nextExpXb[outsideIdx]=(expXbLower + .5*(expXbUpper-expXbLower))[outsideIdx]
-						rhsNextExpXb = rhs(nextExpXb)
-							tmpIdx = rhsNextExpXb[outsideIdx] > nextExpXb[outsideIdx]
-							if(any(tmpIdx)) 	expXbLower[outsideIdx][tmpIdx] =  nextExpXb[outsideIdx][tmpIdx]
-							tmpIdx = !tmpIdx
-							if(any(tmpIdx)) 	expXbUpper[outsideIdx][tmpIdx] =  nextExpXb[outsideIdx][tmpIdx]
-					}else rhsNextExpXb = rhs(nextExpXb)
-					
-					insideIdx = !outsideIdx
-					if(any(insideIdx)) { ## fixed point stays inside bracketing interval
-						tmpIdx = rhsNextExpXb[insideIdx] > nextExpXb[insideIdx]
-						if(any(tmpIdx)) expXbLower[insideIdx][tmpIdx] = nextExpXb[insideIdx][tmpIdx]
-						tmpIdx = !tmpIdx
-						if(any(tmpIdx)) expXbUpper[insideIdx][tmpIdx] = nextExpXb[insideIdx][tmpIdx]
+					idx0=!idx0
+					if ( any(idx0) ){
+						bf=bracketFactor; bf[!idx0]=1
+						repeat{
+							expXbUpper= expXbUpper / bf
+							tmpIdx = rhs(expXbUpper)[idx0] < expXbUpper[idx0]
+							if(all(tmpIdx)) { break
+							}else bf[idx0 & tmpIdx] = 1
+						}
 					}
-					
-					if( sqrt(sum((nextExpXb-startExpXb1)^2))   <= control$tol 
-					 || sqrt(sum((expXbLower - expXbUpper)^2)) <= control$tol
-					) {
-						diffbet=abs((nextExpXb-startExpXb1)/nextExpXb)
-						if(all(abs(xxuniqInv%*%(diffbet-.5*diffbet^2+diffbet^3/3)) <=control$tol) )
-							break  ## 3-term Taylor approx log(startExpXb)-log(nextExpXb)
-					}
-
-					it=it+1L
-					startExpXb0=startExpXb1
-					startExpXb1=nextExpXb
 				}
+				## Fixed Point With Steffensen Iterations
+				nextExpXb = startExpXb1
+				for(grpId in seq_len(rk)){ 
+					it=1L
+					mu0=mu=startExpXb1[grpId]
+					steff=FALSE
+					while(it <= control$maxit){
+						nextmu=rhs1(mu, grpId)
+						if (abs(mu - nextmu) <= control$tol ) break
+						if(steff && (steffDenom<-nextmu-2*mu+mu0) !=0) {
+							bak=nextmu
+							nextmu=mu0-(mu-mu0)^2/steffDenom  #  Steffensen's method (Aitken acceleration)
+							if(any(!is.finite(nextmu))) {
+								nextmu=bak
+							}
+						}
+						steff = !steff
+						it=it+1L
+						mu0=mu
+						mu=nextmu
+					}
+					nextExpXb[grpId]=nextmu
+				}
+				
 				start= as.vector(xxuniqInv %*% linkfun(nextExpXb))
 				startAdjscore=adjScoreFunc(start,approxJacob=FALSE)
 				if(sqrt(sum(startAdjscore^2))<=control$tol) {
@@ -383,12 +312,12 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 					attr(start, 'success')=TRUE
 					attr(start, 'iter')=it
 				}
-			}, error=function(e){doIteration <<- TRUE; message(e); NULL})  ## tryCatch
+			}, error=function(e){doIteration <<- TRUE; print(e); NULL})  ## tryCatch
 		}
 	}else stop("rank of x is larger than number of unique rows of x")
 	
 
-	if(doIteration){
+	if(doIteration){ print("doIteration")
 		approxJacob=adjScoreFunc(start,approxJacob=TRUE)
 		ans=suppressWarnings(nlsolve(start, adjScoreFunc, control$solvers, control))
 		if(!attr(ans, 'nlsolve.success')){
@@ -436,49 +365,11 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 	}
 }
 
-#' @rdname fbrNBglm
-#' @param standardizeX A logical scalar. If \code{TRUE}, columns of 
-#'      design matrix will be standardized with norm 1 during the 
-#'      fitting process, except for columns with identical values. 
-#' @param coefOnly A logical scalar. If \code{TRUE}, only the regression
-#'      coefficients will be returned. This is useful when being called
-#'      from other functions, e.g. \code{\link{NBDev}}. If \code{coef=FALSE},
-#'      a \code{glm} object will be returned. 
-#' @param solvers The non-linear equation solvers to be used if iterative 
-#'      fitting is necessary.
-#' @param verbose A logical scalar, indicating whether intermediate messages 
-#'      should be printed.
-#' @param maxit A positive integer, the maximum number of iterations allowed
-#'      if iterative fitting is necessary. 
-#' @param start A numeric vector of starting values, with length being the
-#'      same as the number of columns of \code{x}.
-#' @param infoParms A list of three components, named \code{j}, \code{k}, 
-#'      and \code{m}, respectively. These parameters control the type of 
-#'      adjustment made to the score function. When all j, k, and m are 1, 
-#'      the observed information is used in the adjustment. When \code{k=0},
-#'      the expected information is used. See reference for details. 
-#' @param order A positive integer. Usually this should be set to 2, 
-#'      indicating the second order, i.e., \eqn{O(n^{-1})}{O(n^{-1})} bias 
-#'      being reduced by the adjustment. For one-way design, if \code{infoParms$j=1} and offsets are constants within each treatment, the third
-#'      order bias reduction with \code{order=3} is also support, resulting 
-#'      in an estimate with both \eqn{O(n^{-1})}{O(n^{-1})} order and 
-#'      \eqn{O(n^{-2})}{O(n^{-2})} order biases being reduced. 
-#' @param tol Small positive integer, indicating the desired accuracy
-#'      of parameter estimates.
-#' @param qr.tol The same as the \code{tol} argument of \link[base:qr]{qr}.
-#' @export
+
 fbrNBglm.control=
-function (standardizeX = TRUE, coefOnly=TRUE, solvers=nlSolvers, 
-          verbose = FALSE, maxit=25L, start = NULL, 
-          infoParms=list(j=1,k=1,m=1), order=2L, 
-          tol=sqrt(.Machine$double.eps), qr.tol=tol) 
+function (standardizeX = TRUE, coefOnly=TRUE, solvers=nlSolvers, verbose = FALSE, maxit=25L, start = NULL, infoParms=list(j=1,k=1,m=1), tol=sqrt(.Machine$double.eps)) 
 {
 	stopifnot(all(sort(names(infoParms))==c('j','k','m')))
-	if (order == 3L){
-		if(infoParms$j!=1) stop(message("Third order bias reduction with 'infoParms$j != 1' is not implemented yet"))
-	}else if (order != 2L){
-		stop(message('Currently "order" needs to be 2 or 3.'))
-	}
-    structure(list(standardizeX = standardizeX, coefOnly = coefOnly, infoParms=infoParms, order=order, solvers = solvers, verbose = verbose, maxit=maxit, start = start, tol = tol, qr.tol=qr.tol), class = "fbrNBglm.control")
+    structure(list(standardizeX = standardizeX, coefOnly = coefOnly, infoParms=infoParms, solvers = solvers, verbose = verbose, maxit=maxit, start = start, tol = tol), class = "fbrNBglm.control")
 }
 
