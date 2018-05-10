@@ -156,7 +156,11 @@ fbrNBglm.fit=function(x, y, weights = rep(1, length(y)),
 		#group=grpDuplicated(xx, factor=TRUE)
 		#constOffset = sapply(split(oo, group), function(ooo)max(ooo)==min(ooo)) # faster than by, tapply, ave
 		
-		group=grpDuplicated(xx)
+		#group=grpDuplicated(xx)
+		group<-rep(NA,nrow(xx))
+		for(ii in 1:nrow(xxuniq))
+		  group[which(apply(xx,1,all.equal,xxuniq[ii,])=="TRUE")]<-ii
+		
 		constOffset = all(ave(oo, group) == oo)
 		oneWayX=1 * (group==rep(seq_len(rk), each=ngood)); dim(oneWayX)=c(ngood, rk)
 	

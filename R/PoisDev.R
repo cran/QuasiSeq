@@ -13,8 +13,12 @@ PoisDev<-function(counts,design,log.offset,print.progress=TRUE)
 	rk=qr(design)$rank
 	uniqx=unique(design)
 	uniqxTInv = if(rk==2) solve22(t(uniqx)) else solve(t(uniqx))
-	if(NROW(uniqx) == rk) {  
-		group = grpDuplicated(design)
+	if(NROW(uniqx) == rk) {
+		#group = grpDuplicated(design)
+		group<-rep(NA,nrow(design))
+		for(ii in 1:nrow(uniqx))
+		  group[which(apply(design,1,all.equal,uniqx[ii,])=="TRUE")]<-ii
+		
 		oneWayX=1 * (group==rep(seq_len(rk), each=n)); dim(oneWayX)=c(n, rk)
 		## oneWayX is an equivalent design matrix in 0-1 coding, w/o intercept
 		oneWayN = colSums(oneWayX)

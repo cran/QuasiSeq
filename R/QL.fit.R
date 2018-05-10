@@ -75,13 +75,20 @@ QL.fit <- function(counts, design.list, test.mat = cbind(1L, 2:length(design.lis
         ### Obtain negative binomial dispersion estimates from edgeR, if requested
         if(NBdisp[1L] %in% c("trend", "common")){
           
+          uniqx<-unique(design)
+          group<-rep(NA,nrow(design))
+          for(ii in 1:nrow(uniqx))
+            group[which(apply(design,1,all.equal,uniqx[ii,])=="TRUE")]<-ii
+          
+          
           ### Default to using edgeR's suggested normalization routine
           if (is.null(log.offset)) { 
-            d <- DGEList(counts = counts, group = grpDuplicated(design))
+            d <- DGEList(counts = counts, group = group)#grpDuplicated(design))
             d <- calcNormFactors(d)
           }else {
 			### If provided, use prespecified library size normalizations instead of edgeR's normalization routine
-            d <- DGEList(counts = counts, group = grpDuplicated(design), lib.size = exp(log.offset))
+            d <- DGEList(counts = counts, group = group,#group = grpDuplicated(design),
+                         lib.size = exp(log.offset))
           }
 		  
           ### If requested, use gene-specific trended dispersion estimates from GLM edgeR (McCarthy et al., 2012).
