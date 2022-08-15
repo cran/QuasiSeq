@@ -104,11 +104,7 @@ bias in the coefficients are reduced.
 \author{
 Long Qu <rtistician@gmail.com>
 }
-\concept{
-bias reduction
-
-Firth
-}
+\concept{Firth bias reduction}
 \keyword{iteration}
 \keyword{models}
 \keyword{regression}

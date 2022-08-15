@@ -1,6 +1,6 @@
 Package: QuasiSeq
-Version: 1.0-10-2
-Date: 2018-05-9
+Version: 1.0-11-0
+Date: 2022-08-11
 Title: Analyzing RNA Sequencing Count Tables Using Quasi-Likelihood
 Authors@R: c(
   person("Steve", "Lund", role=c("aut", "cre"), email="lundsp@gmail.com"),
@@ -9,7 +9,7 @@ Authors@R: c(
   person("Ian", "Marschner", role="aut", comment="The author of glm2::glm.fit2, which was modified slightly leading to glm.fit3 in this package."), 
   person("", "R Core Team", role="aut", comment="The author of stats::glm.fit, which was modified slightly leading to glm.fit3 in this package.")
   )
-Depends: R (>= 3.5.0)
+Depends: R (>= 4.0.0)
 Imports: edgeR, mgcv, pracma, utils, grDevices, graphics
 Suggests: BB, nleqslv
 Enhances: stats
@@ -19,7 +19,7 @@ NeedsCompilation: yes
 LazyData: yes
 Biarch: yes
 RoxygenNote: 6.0.1
-Packaged: 2018-05-10 19:07:51 UTC; spl
+Packaged: 2022-08-12 14:47:05 UTC; spl
 Author: Steve Lund [aut, cre],
   Long Qu [aut, ctb],
   Klirk Bhasavanich [aut],
@@ -29,4 +29,4 @@ Author: Steve Lund [aut, cre],
     slightly leading to glm.fit3 in this package.)
 Maintainer: Steve Lund <lundsp@gmail.com>
 Repository: CRAN
-Date/Publication: 2018-05-10 21:32:13 UTC
+Date/Publication: 2022-08-15 11:40:12 UTC

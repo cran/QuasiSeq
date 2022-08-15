@@ -1,4 +1,4 @@
-f06ff2d9ab2a2c42a658a796a27878e7 *DESCRIPTION
+3a78d3b6e9c1ab3e5c7546facad03b07 *DESCRIPTION
 977497568f57e98ac5dccb370a24a724 *NAMESPACE
 5bec6dd79613da55e5e064ed9d46699e *R/NBDev.R
 020cad3bd2d5d6fdd4134b24576e9a68 *R/PoisDev.R
@@ -19,13 +19,13 @@ afd010ef5073fc53cfb439f314311b95 *man/PoisDev.Rd
 bde20270900372235ec0a90b82b2eea7 *man/QL.fit.Rd
 4b4ddd2296722f192f20e4435c899898 *man/QL.results.Rd
 eeacd277e3de61544c88cc9efde194ff *man/coef.glm.Rd
-09f0a3249202176669e8fca31ea70045 *man/fbrNBglm.Rd
+25aa03a5d663d071ac6c0081644154f5 *man/fbrNBglm.Rd
 44e99f5079c7ffc2ace02fb00fd34f13 *man/glmSolve.Rd
 eceb07ecae8338c136ff3fbc92bbd33c *man/mockRNASeqData.Rd
 094025ad43eb9ab4057459358541eac9 *man/negbin.Rd
 85587d49a7830403a938487c471ed6f1 *man/nlSolve.Rd
 2a6f9e9e044a78154d3cfda5936d6f48 *src/Makevars
-a9125bb6385b8d0e41750fe1a12cda05 *src/glmBias.c
+fa22bf6d96c0c5faf59df174179709a1 *src/glmBias.c
 6368dc1f7f47bd368f36fc3ab8c22668 *src/registration.c
 3bb41a196f06b3b9f37a51c25b72c1e3 *tests/bak/NBDevBartlett.R
 058dcd5d3bacf36c200ea04aadc004b3 *tests/bak/zzz1_brent.R

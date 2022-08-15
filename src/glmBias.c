@@ -4,6 +4,9 @@
 #include <R_ext/BLAS.h>
 #include <R_ext/Lapack.h>
 #include <R_ext/RS.h>
+#ifndef FCONE
+# define FCONE
+#endif
 
 #define LWORK 10000
 
@@ -46,10 +49,10 @@ void getBias(int* n, int* p, double* rtwx, double* wrt, double* coef)
 		hatwq[i] = -0.5 * pow(F77_CALL(dnrm2)(p, Q+i, n), 2.0) / wrt[i];
 	
 	/* Find Q'(RHS) */
-	F77_CALL(dgemv)(T, n, p, &dOne, Q, n, hatwq, &iOne, &dZero, coef, &iOne);
+	F77_CALL(dgemv)(T, n, p, &dOne, Q, n, hatwq, &iOne, &dZero, coef, &iOne FCONE);
 	
 	/* Solve triangular system for coefficients */
-	F77_CALL(dtrsv)(U, N, N, p, rtwx, n, coef, &iOne);
+	F77_CALL(dtrsv)(U, N, N, p, rtwx, n, coef, &iOne FCONE FCONE FCONE);
 	
 	/* Reverse the pivoting */
 	for(i=*p-1; i>=0; i--)
